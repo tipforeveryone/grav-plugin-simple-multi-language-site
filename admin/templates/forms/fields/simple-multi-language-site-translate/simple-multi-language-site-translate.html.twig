@@ -33,8 +33,8 @@
                             <input type="hidden" name="task" value="continue">
                             <input type="hidden" name="data[route]" value="{{ target_parent }}">
                             <input type="hidden" name="data[name]" value="{{ page_obj.template }}">
-                            <input type="hidden" name="data[header][language]" value="{{ target_code }}">
-                            <input type="hidden" name="data[header][translations][{{ current_code }}]" value="{{ '/' ~ (page_obj.route ?: '')|trim('/') }}">
+                            <input type="hidden" name="data[header][smls_language]" value="{{ target_code }}">
+                            <input type="hidden" name="data[header][smls_translations][{{ current_code }}]" value="{{ '/' ~ (page_obj.route ?: '')|trim('/') }}">
                             {{ nonce_field('admin-form', 'admin-nonce')|raw }}
                             <button type="submit" class="button">
                                 <i class="fa fa-plus"></i> Add Translation

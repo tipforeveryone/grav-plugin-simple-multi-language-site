@@ -6,9 +6,14 @@ use Grav\Common\Page\Interfaces\PageInterface;
 use Grav\Common\Page\Pages;
 
 /**
- * Đọc/ghi field header.translations (map code => route) và đồng bộ 2 chiều
- * khi 1 trang được lưu. Không có khái niệm "Neutral" — mọi trang phải có
- * header.language, trang cũ chưa gán coi như thuộc default_language.
+ * Đọc/ghi field header.smls_translations (map code => route) và đồng bộ 2
+ * chiều khi 1 trang được lưu. Không có khái niệm "Neutral" — mọi trang phải
+ * có header.smls_language, trang cũ chưa gán coi như thuộc default_language.
+ *
+ * Field KHÔNG đặt tên "language"/"translations" trơn — xem ghi chú trong
+ * simple-multi-language-site.php::onBlueprintCreated() về việc Grav core
+ * tự đọc header.language vào $page->language() và dùng nó để build URL
+ * Admin, gây link sai dù không bật multi-language native.
  */
 class TranslationLinker
 {
@@ -26,14 +31,14 @@ class TranslationLinker
     }
 
     /**
-     * Ưu tiên field header.language; nếu trang cũ chưa gán, suy luận theo
+     * Ưu tiên field header.smls_language; nếu trang cũ chưa gán, suy luận theo
      * root_path (path prefix) trước khi rơi về default_language — cùng logic
      * xác định 100% dùng ở Language Converter, để trang cũ vẫn hiển thị đúng
      * ngôn ngữ ngay cả khi chưa ai bấm "Chạy gán ngôn ngữ hàng loạt".
      */
     public function getPageLanguage(PageInterface $page): string
     {
-        $code = trim((string) ($page->header()->language ?? ''));
+        $code = trim((string) ($page->header()->smls_language ?? ''));
         if ($code !== '') {
             return $code;
         }
@@ -50,7 +55,7 @@ class TranslationLinker
     public function getTranslations(PageInterface $page): array
     {
         $header = $page->header();
-        $translations = (array) ($header->translations ?? []);
+        $translations = (array) ($header->smls_translations ?? []);
 
         $map = [];
         foreach ($translations as $code => $route) {
@@ -82,7 +87,7 @@ class TranslationLinker
 
     /**
      * Sau khi 1 trang được lưu trong Admin: với mỗi counterpart khai báo trong
-     * header.translations, mở trang đích và đảm bảo nó cũng trỏ ngược lại
+     * header.smls_translations, mở trang đích và đảm bảo nó cũng trỏ ngược lại
      * route của trang vừa lưu. Bỏ qua nếu route đích không tồn tại hoặc đã
      * đúng sẵn (tránh ghi/save thừa).
      */
@@ -129,9 +134,9 @@ class TranslationLinker
         }
 
         $header = $targetPage->header();
-        $translations = (array) ($header->translations ?? []);
+        $translations = (array) ($header->smls_translations ?? []);
         $translations[$sourceCode] = $sourceRoute;
-        $header->translations = $translations;
+        $header->smls_translations = $translations;
         $targetPage->header($header);
 
         self::$syncing[$targetRoute] = true;

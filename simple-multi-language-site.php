@@ -11,12 +11,15 @@ use RocketTheme\Toolbox\Event\Event;
 /**
  * Simple Multi Language Site (SMLS)
  *
- * Đa ngôn ngữ dựa trên field frontmatter (header.language + header.translations
+ * Đa ngôn ngữ dựa trên field frontmatter (header.smls_language + header.smls_translations
  * map code=>route), không dùng cơ chế multi-language native của Grav. Site vẫn
  * giữ nguyên cấu trúc thư mục theo ngôn ngữ (vd user/pages/vi, user/pages/en);
  * mỗi ngôn ngữ + root_path tương ứng được khai báo tự do trong config plugin
  * (không hardcode vi/en/fr). Không có khái niệm "Neutral" — mọi trang phải
  * gán ngôn ngữ, trang cũ thiếu field coi như thuộc default_language.
+ *
+ * Field cố tình có tiền tố "smls_" — KHÔNG đặt tên trơn "language"/"translations",
+ * xem ghi chú trong onBlueprintCreated() bên dưới.
  */
 class SimpleMultiLanguageSitePlugin extends Plugin
 {
@@ -231,7 +234,7 @@ class SimpleMultiLanguageSitePlugin extends Plugin
 
         $rows = [];
         foreach ($this->grav['pages']->all() as $page) {
-            $code = trim((string) ($page->header()->language ?? ''));
+            $code = trim((string) ($page->header()->smls_language ?? ''));
             if ($code === '') {
                 continue;
             }
@@ -271,8 +274,16 @@ class SimpleMultiLanguageSitePlugin extends Plugin
             $options[$language['code']] = $language['label'];
         }
 
+        // Lưu ý: field KHÔNG được đặt tên "language" — Grav core (Page::init(),
+        // system/src/Grav/Common/Page/Page.php) tự đọc header.language vào
+        // $page->language() bất kể có bật multi-language native hay không, và
+        // Admin dùng giá trị đó để build link edit trong page-list
+        // (AdminTwigExtension::getPageUrl() -> Admin::getAdminRoute()), luôn
+        // chèn "/<language>" NGAY TRƯỚC route admin — vd "/vi/admin/pages/..."
+        // — dù system.languages.supported đang tắt. Namespace field để tránh
+        // đụng độ với key lõi này (xem README).
         $fields = [];
-        $fields['header.language'] = [
+        $fields['header.smls_language'] = [
             'type' => 'select',
             'label' => 'Ngôn ngữ',
             'default' => $this->languages()->getDefaultLanguage(),
@@ -287,8 +298,8 @@ class SimpleMultiLanguageSitePlugin extends Plugin
             // trang CÙNG TEMPLATE với trang đang edit (xem twigPagesByTemplate),
             // và gộp luôn nút Add Translation vào chung 1 hàng label/textbox.
             // outerclasses cho phép JS ẩn/hiện theo ngôn ngữ đang chọn ở
-            // header.language — chỉ hiện các ngôn ngữ KHÁC ngôn ngữ hiện tại.
-            $fields['header.translations.' . $code] = [
+            // header.smls_language — chỉ hiện các ngôn ngữ KHÁC ngôn ngữ hiện tại.
+            $fields['header.smls_translations.' . $code] = [
                 'type' => 'simple-multi-language-site-translate',
                 'label' => 'Bản dịch: ' . $language['label'],
                 'target_code' => $code,
@@ -376,7 +387,7 @@ class SimpleMultiLanguageSitePlugin extends Plugin
     }
 
     /**
-     * Language Converter — Phần 1: bulk gán header.language cho mọi trang
+     * Language Converter — Phần 1: bulk gán header.smls_language cho mọi trang
      * chưa có field này, dựa trên root_path đã cấu hình cho từng ngôn ngữ.
      * Xác định 100% bằng path prefix, không đoán mò nên chạy tự động toàn bộ.
      */
@@ -391,7 +402,7 @@ class SimpleMultiLanguageSitePlugin extends Plugin
         $count = 0;
         foreach ($this->grav['pages']->all() as $page) {
             $header = $page->header();
-            $current = trim((string) ($header->language ?? ''));
+            $current = trim((string) ($header->smls_language ?? ''));
             if ($current !== '') {
                 continue;
             }
@@ -401,7 +412,7 @@ class SimpleMultiLanguageSitePlugin extends Plugin
                 continue;
             }
 
-            $header->language = $language['code'];
+            $header->smls_language = $language['code'];
             $page->header($header);
             $page->save(false);
             $count++;

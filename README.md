@@ -107,19 +107,27 @@ Two ways to stay safe:
 
 If you build a fallback like that, **do not** use `$twig->hasFunction()`/`getFunction()` to check whether the real function is already registered before deciding to add a fallback — calling either of those methods forces Twig to finalize its extension list immediately, and if the plugin then tries to register its real functions afterward, Twig throws `"Unable to register extension ... as extensions have already been initialized"`. Check `plugins.simple-multi-language-site.enabled` from config instead, and only register fallbacks when it's falsy.
 
+Also skip fallback registration entirely when `\Grav\Common\Utils::isAdminPlugin()` is true — Admin uses its own theme and never calls these functions, and registering them unconditionally there was observed to occasionally lock the whole Admin panel out (same Twig-extension-timing class of issue as above, just triggered from the Admin side instead of the frontend).
+
 ## Data model
 
 Stored directly in each page's frontmatter, no separate storage:
 
 ```yaml
-language: en
-translations:
+smls_language: en
+smls_translations:
     vi: /vi/some-page
 ```
 
-- `language` — this page's language code.
-- `translations` — map of `code => route` for other languages. Empty/missing means "no translation yet" (the frontend switcher simply won't show a link for that language).
+- `smls_language` — this page's language code.
+- `smls_translations` — map of `code => route` for other languages. Empty/missing means "no translation yet" (the frontend switcher simply won't show a link for that language).
 - `translation` (singular, legacy) — pre-plugin ad hoc field some pages already had; still read as a fallback for one link, migrated naturally the next time the page is saved through the new UI.
+
+### ⚠️ Why not just `language` / `translations`?
+
+Those were the original field names, and they broke the Admin page list. **`header.language` is not a free key — Grav core reads it.** `Grav\Common\Page\Page` (`system/src/Grav/Common/Page/Page.php`) unconditionally copies `header.language` into the page object's internal `language()` property on init, *regardless of whether `system.languages.supported` is configured*. Admin's own page-list link builder (`AdminTwigExtension::getPageUrl()` → `Admin::getAdminRoute()`) then uses that value to prepend a `/<language>` segment **before** the admin route — so any page with `header.language` set got Admin edit links like `/vi/admin/pages/...` instead of `/admin/pages/...`, which don't resolve (Admin's router doesn't expect a language prefix ahead of its own route unless native multi-language is actually active) and land on a 404/error page instead.
+
+This is Admin core behavior clearly built for Grav's native i18n, that fires unconditionally on the mere presence of the field — nothing this plugin can suppress. The fix is simply not colliding with the key: **never use a bare `language`/`translations` header field for this kind of thing** — always namespace it.
 
 ## Author
 
