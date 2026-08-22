@@ -2,12 +2,10 @@
 
 A Grav plugin for multi-language sites that keep **separate content trees per language** (e.g. `user/pages/vi/`, `user/pages/en/`) instead of Grav's native same-folder-with-suffix i18n. Each page explicitly declares its own language and points to its counterpart pages in the other configured languages via frontmatter — no assumption that URLs mirror each other between languages.
 
-Built for [Phuong Mai Law (eznotary)](../../themes/eznotary), designed to be reusable on other sites/themes.
-
 ## Features
 
 - **Free-form language list**: define any number of languages with your own codes (not hardcoded to `vi`/`en`/`fr`), each with a `root_path` (the folder that holds that language's pages) and a designated default language.
-- **Per-page language + translation links**: every page gets a "Ngôn ngữ" (language) field and one "Bản dịch: X" field per other configured language, added directly under the Content tab's editor. The translation picker only lists pages that share the same **template** as the page being edited.
+- **Per-page language + translation links**: every page gets a language select field and one translation-link field per other configured language, added directly under the Content tab's editor. The translation picker only lists pages that share the same **template** as the page being edited.
 - **Bidirectional sync**: linking page A → page B on save automatically links page B → page A too, so you only ever set the link from one side.
 - **Add Translation**: for any language not yet linked, a button pre-fills Grav Admin's "Add Page" screen with the target language and a back-link to the current page already set.
 - **Language Converter** (`Admin > Multi Language`): bulk-assigns `language` to legacy pages that don't have it yet, based on `root_path` prefix matching (100% deterministic, no guessing), plus a report of pages still missing a counterpart in some language — pairing itself is always left to a human, never auto-guessed.
@@ -20,7 +18,7 @@ Built for [Phuong Mai Law (eznotary)](../../themes/eznotary), designed to be reu
 
 ## Installation
 
-Currently lives as a plain folder at `user/plugins/simple-multi-language-site/` (not yet a git submodule / not on GPM). Enable it under `Admin > Plugins > Simple Multi Language Site`.
+Lives as a git submodule at `user/plugins/simple-multi-language-site/`, pointing to its own repo (not on GPM). To add it to another site: `git submodule add git@github.com:tipforeveryone/grav-plugin-simple-multi-language-site.git user/plugins/simple-multi-language-site`. Enable it under `Admin > Plugins > Simple Multi Language Site`.
 
 ## Configuration
 
@@ -29,14 +27,14 @@ Go to `Admin > Plugins > Simple Multi Language Site`:
 | Field | Description |
 |---|---|
 | **Plugin status** | Enable/disable the whole plugin |
-| **Danh sách ngôn ngữ** | One row per language: **Mã ngôn ngữ** (code, free-form, ISO-style recommended e.g. `vi`/`en`/`fr`), **Tên hiển thị** (label), **Root path** (the folder holding that language's pages, e.g. `/vi`) |
-| **Ngôn ngữ mặc định** | Applied to legacy pages that don't have a `language` field yet, and as the default for new pages |
+| **Languages list** | One row per language: **code** (free-form, ISO-style recommended e.g. `vi`/`en`/`fr`), **label** (display name), **root path** (the folder holding that language's pages, e.g. `/vi`) |
+| **Default language** | Applied to legacy pages that don't have a `language` field yet, and as the default for new pages |
 
 The plugin needs **at least 2 languages configured** before it injects anything into page-edit forms or the frontend switcher.
 
 ## Usage
 
-1. Edit any page — under the **Content** tab, below the main editor, you'll find a **Ngôn ngữ** select and one **Bản dịch: X** row per other configured language (each row only shows pages using the same template as the current page).
+1. Edit any page — under the **Content** tab, below the main editor, you'll find a language select and one translation-link row per other configured language (each row only shows pages using the same template as the current page).
 2. Pick the current page's language, then either select an existing translated page from the dropdown, or click **Add Translation** to scaffold a new one (pre-filled with the target language and a back-link).
 3. Save — the counterpart page is automatically updated to link back.
 4. `Admin > Multi Language` — run the bulk language-assignment for legacy pages, and check the "still missing a translation" report.
