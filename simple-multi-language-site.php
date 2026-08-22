@@ -42,6 +42,8 @@ class SimpleMultiLanguageSitePlugin extends Plugin
             return;
         }
 
+        $this->applyDefaultLanguageRootRedirect();
+
         $this->enable([
             'onTwigInitialized' => ['onTwigInitialized', 0],
         ]);
@@ -57,6 +59,32 @@ class SimpleMultiLanguageSitePlugin extends Plugin
             'onAdminTwigTemplatePaths' => ['onAdminTwigTemplatePaths', 0],
             'onAdminTaskExecute' => ['onAdminTaskExecute', 0],
         ]);
+    }
+
+    /**
+     * "/" nên tự trỏ về root_path của Ngôn ngữ mặc định, để đổi ngôn ngữ mặc
+     * định chỉ cần sửa 1 chỗ (config plugin) thay vì phải tự sửa thêm
+     * site.yaml. Ghi đè site.redirects['^/$'] ngay lúc runtime —
+     * Pages::dispatch() đọc trực tiếp config này mỗi request nên set ở đây
+     * là đủ, không cần đụng vào file site.yaml. Ghi đè hẳn (không cố "chỉ set
+     * nếu chưa có") — bật manage_root_redirect nghĩa là để plugin làm chủ
+     * hoàn toàn redirect "/", tắt field này nếu muốn tự quản lý riêng trong
+     * site.yaml.
+     */
+    private function applyDefaultLanguageRootRedirect(): void
+    {
+        if (!$this->config->get('plugins.simple-multi-language-site.manage_root_redirect', true)) {
+            return;
+        }
+
+        $rootPath = $this->twigRootPath($this->languages()->getDefaultLanguage());
+        if (!$rootPath) {
+            return;
+        }
+
+        $redirects = (array) $this->config->get('site.redirects', []);
+        $redirects['^/$'] = $rootPath . '[301]';
+        $this->config->set('site.redirects', $redirects);
     }
 
     private function registerAutoload(): void

@@ -10,6 +10,7 @@ A Grav plugin for multi-language sites that keep **separate content trees per la
 - **Add Translation**: for any language not yet linked, a button pre-fills Grav Admin's "Add Page" screen with the target language and a back-link to the current page already set.
 - **Language Converter** (`Admin > Multi Language`): bulk-assigns `language` to legacy pages that don't have it yet, based on `root_path` prefix matching (100% deterministic, no guessing), plus a report of pages still missing a counterpart in some language — pairing itself is always left to a human, never auto-guessed.
 - **Legacy-field fallback**: if a page already has an old singular `translation: /some/route` field (from a hand-rolled i18n setup that predates this plugin), it's still read as one valid link until the page is next saved through the new UI.
+- **Owns the site-root redirect** (optional, on by default): `/` gets redirected to the default language's `root_path` — change which language is default in one place (plugin config) instead of also having to hand-edit a `site.yaml` redirect. Turn off via **Tự quản lý redirect trang gốc "/"** if you'd rather manage that redirect yourself.
 
 ## Requirements
 
@@ -28,7 +29,8 @@ Go to `Admin > Plugins > Simple Multi Language Site`:
 |---|---|
 | **Plugin status** | Enable/disable the whole plugin |
 | **Languages list** | One row per language: **code** (free-form, ISO-style recommended e.g. `vi`/`en`/`fr`), **label** (display name), **root path** (the folder holding that language's pages, e.g. `/vi`) |
-| **Default language** | Applied to legacy pages that don't have a `language` field yet, and as the default for new pages |
+| **Default language** | Applied to legacy pages that don't have a `language` field yet, and as the default for new pages. Also drives the `/` root redirect (see below) unless that's turned off. |
+| **Tự quản lý redirect trang gốc "/"** | On by default: overrides `site.redirects['^/$']` at runtime to point at the default language's `root_path`. Turn off if you want to manage that redirect yourself in `site.yaml`. |
 
 The plugin needs **at least 2 languages configured** before it injects anything into page-edit forms or the frontend switcher.
 
