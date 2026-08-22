@@ -1,0 +1,91 @@
+{% extends "forms/field.html.twig" %}
+
+{% block field %}
+    {% set target_code = field.target_code %}
+    {% set target_label = field.target_label %}
+    {% set page_obj = admin.page() %}
+    {% set current_code = smls_current_language(page_obj) %}
+
+    <div class="form-field grid {{ field.outerclasses }}">
+        <div class="form-label block size-1-3">
+            <label>{{ field.label|t }}</label>
+        </div>
+        <div class="form-data block size-2-3 smls-inline-data">
+            <div class="form-select-wrapper">
+                {# Chỉ liệt kê trang cùng template với trang đang edit — không lẫn
+                   nav/footer/member... vào picker của trang article, vd. #}
+                <select name="{{ field_name }}">
+                    <option value="" {% if not value %}selected="selected"{% endif %}>Chưa có bản dịch</option>
+                    {% for candidate in smls_pages_by_template(page_obj) %}
+                        <option value="{{ candidate.route }}" {% if candidate.route == value %}selected="selected"{% endif %}>
+                            {{ candidate.title }} ({{ candidate.route }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if target_code != current_code %}
+                {% set existing_route = smls_switch_route(page_obj, target_code) %}
+                {% if not existing_route %}
+                    {% set target_parent = smls_translate_target_parent(page_obj, target_code) %}
+                    {% if target_parent is not null %}
+                        <form method="post" action="{{ base_url_relative }}/pages{{ target_parent }}" class="smls-inline-form">
+                            <input type="hidden" name="task" value="continue">
+                            <input type="hidden" name="data[route]" value="{{ target_parent }}">
+                            <input type="hidden" name="data[name]" value="{{ page_obj.template }}">
+                            <input type="hidden" name="data[header][language]" value="{{ target_code }}">
+                            <input type="hidden" name="data[header][translations][{{ current_code }}]" value="{{ '/' ~ (page_obj.route ?: '')|trim('/') }}">
+                            {{ nonce_field('admin-form', 'admin-nonce')|raw }}
+                            <button type="submit" class="button">
+                                <i class="fa fa-plus"></i> Add Translation
+                            </button>
+                        </form>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            if (window.__smlsInit) { return; }
+            window.__smlsInit = true;
+
+            var style = document.createElement('style');
+            style.textContent =
+                '.smls-inline-data { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }' +
+                '.smls-inline-data .form-select-wrapper { flex: 1 1 auto; min-width: 12rem; }' +
+                '.smls-inline-form { margin: 0; }';
+            document.head.appendChild(style);
+
+            function applyLanguageVisibility(select) {
+                var current = select.value;
+                var rows = document.querySelectorAll('.smls-lang-row');
+                for (var i = 0; i < rows.length; i++) {
+                    var row = rows[i];
+                    var code = null;
+                    row.classList.forEach(function (cls) {
+                        if (cls.indexOf('smls-lang-row-') === 0) {
+                            code = cls.replace('smls-lang-row-', '');
+                        }
+                    });
+                    if (code === null) { continue; }
+                    row.style.display = (code === current) ? 'none' : '';
+                }
+            }
+
+            function bind() {
+                var select = document.querySelector('[data-smls-language-select]');
+                if (!select) { return; }
+                applyLanguageVisibility(select);
+                select.addEventListener('change', function () { applyLanguageVisibility(select); });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bind);
+            } else {
+                bind();
+            }
+        })();
+    </script>
+{% endblock %}

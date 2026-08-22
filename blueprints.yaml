@@ -1,0 +1,62 @@
+name: "[TIP] - Simple Multi Language Site"
+version: 0.1.0
+description: Đa ngôn ngữ dựa trên field frontmatter (language + translations map), không dùng cơ chế native của Grav. Số lượng ngôn ngữ và root_path tự khai báo, không hardcode.
+icon: language
+author:
+  name: tipforeveryone
+keywords: multilanguage, i18n, translation, pages
+license: MIT
+
+dependencies:
+  - { name: grav, version: '>=1.7.0' }
+  - { name: admin }
+
+form:
+  validation: loose
+  fields:
+    enabled:
+      type: toggle
+      label: Plugin status
+      highlight: 1
+      default: 1
+      options:
+        1: Enabled
+        0: Disabled
+      validate:
+        type: bool
+
+    languages:
+      type: list
+      style: vertical
+      collapsible: 1
+      label: Danh sách ngôn ngữ
+      help: 'Mỗi ngôn ngữ cần: mã đại diện (tự do, khuyến nghị dùng mã ISO ngắn như vi/en/fr), tên hiển thị, và root_path — thư mục gốc chứa toàn bộ trang thuộc ngôn ngữ đó (vd /vi, /en).'
+      fields:
+        .code:
+          type: text
+          label: Mã ngôn ngữ
+          help: 'VD: vi, en, fr — không bắt buộc theo chuẩn ISO nhưng khuyến nghị dùng ký hiệu ngắn quen thuộc.'
+          validate:
+            required: true
+
+        .label:
+          type: text
+          label: Tên hiển thị
+          help: 'VD: Tiếng Việt, English'
+          validate:
+            required: true
+
+        .root_path:
+          type: text
+          label: Root path
+          help: 'Thư mục gốc chứa trang của ngôn ngữ này, vd /vi hoặc /en. Dùng để nhận diện trang cũ chưa gán ngôn ngữ (Language Converter) và để tính vị trí tạo trang dịch mới (Add Translation).'
+          validate:
+            required: true
+
+    default_language:
+      type: select
+      label: Ngôn ngữ mặc định
+      help: 'Áp dụng cho các trang cũ chưa có field language (trước khi bật plugin này), và làm giá trị mặc định khi tạo trang mới.'
+      data-options@: '\Grav\Plugin\SimpleMultiLanguageSitePlugin::getLanguageOptions'
+      validate:
+        required: true

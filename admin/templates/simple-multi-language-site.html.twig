@@ -1,0 +1,68 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block titlebar %}
+    <div class="button-bar">
+        <a class="button" href="{{ base_url }}"><i class="fa fa-reply"></i> {{ "PLUGIN_ADMIN.BACK"|t }}</a>
+    </div>
+    <h1><i class="fa fa-fw fa-language"></i> Language Converter</h1>
+{% endblock %}
+
+{% block content %}
+<div id="smls-converter-app" style="padding: 0 2rem 3rem 2rem;">
+
+    <section style="margin-bottom: 2.5rem;">
+        <h3>1. Gán ngôn ngữ hàng loạt cho trang cũ</h3>
+        <p class="hint">
+            Quét toàn bộ trang chưa có field <code>header.language</code>, so route với <code>root_path</code>
+            của từng ngôn ngữ đã cấu hình trong Plugins &gt; Simple Multi Language Site, và tự động gán —
+            an toàn 100% vì chỉ dựa trên path prefix, không đoán mò.
+        </p>
+        <form method="post" action="{{ current_url }}" id="smls-assign-form">
+            <input type="hidden" name="task" value="smlsassignlanguages">
+            <input type="hidden" name="_redirect" value="{{ current_url }}">
+            {{ nonce_field('admin-form', 'admin-nonce')|raw }}
+            <button type="submit" class="button button-primary">
+                <i class="fa fa-magic"></i> Chạy gán ngôn ngữ hàng loạt
+            </button>
+        </form>
+    </section>
+
+    <section>
+        <h3>2. Trang còn thiếu bản dịch</h3>
+        <p class="hint">
+            Các trang đã có ngôn ngữ nhưng chưa khai báo counterpart cho ít nhất 1 ngôn ngữ khác.
+            Việc ghép cặp không tự động — bấm vào từng trang để tự chọn (page-picker) hoặc dùng nút
+            "Add Translation" trong tab Multi Language của trang đó.
+        </p>
+        {% set rows = smls_missing_translations() %}
+        {% if rows %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Trang</th>
+                        <th>Ngôn ngữ hiện tại</th>
+                        <th>Còn thiếu</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>{{ row.title }}<br><code>{{ row.route }}</code></td>
+                            <td>{{ row.language }}</td>
+                            <td>{{ row.missing_label }}</td>
+                            <td>
+                                <a class="button" href="{{ base_url_relative }}/pages{{ row.route }}">
+                                    <i class="fa fa-pencil"></i> Mở trang
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="hint">Không có trang nào thiếu bản dịch.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
