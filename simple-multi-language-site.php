@@ -83,7 +83,10 @@ class SimpleMultiLanguageSitePlugin extends Plugin
         }
 
         $redirects = (array) $this->config->get('site.redirects', []);
-        $redirects['^/$'] = $rootPath . '[301]';
+        // Pattern must also match "/" with a query string (eg. UTM params from ad/Zalo
+        // links) — a bare '^/$' silently fails to match, and Pages::dispatch() then 404s
+        // instead of redirecting. "$1" forwards the original query string onto the target.
+        $redirects['^/(\?.*)?$'] = $rootPath . '$1[301]';
         $this->config->set('site.redirects', $redirects);
     }
 
