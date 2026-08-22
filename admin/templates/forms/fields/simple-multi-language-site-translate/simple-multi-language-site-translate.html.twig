@@ -53,9 +53,10 @@
 
             var style = document.createElement('style');
             style.textContent =
-                '.smls-inline-data { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }' +
-                '.smls-inline-data .form-select-wrapper { flex: 1 1 auto; min-width: 12rem; }' +
-                '.smls-inline-form { margin: 0; }';
+                '.smls-inline-data { display: flex; align-items: center; flex-wrap: nowrap; gap: 0.5rem; }' +
+                '.smls-inline-data .form-select-wrapper { flex: 1 1 auto; min-width: 0; }' +
+                '.smls-inline-form { margin: 0; flex: 0 0 auto; }' +
+                '.smls-inline-form .button { white-space: nowrap; }';
             document.head.appendChild(style);
 
             function applyLanguageVisibility(select) {
