@@ -135,6 +135,15 @@ class SimpleMultiLanguageSitePlugin extends Plugin
         $twig->addFunction(new \Twig\TwigFunction('smls_translate_target_parent', [$this, 'twigTranslateTargetParent']));
         $twig->addFunction(new \Twig\TwigFunction('smls_missing_translations', [$this, 'twigMissingTranslations']));
         $twig->addFunction(new \Twig\TwigFunction('smls_pages_by_template', [$this, 'twigPagesByTemplate']));
+        $twig->addFunction(new \Twig\TwigFunction('smls_switcher_display', [$this, 'twigSwitcherDisplay']));
+    }
+
+    /** Kiểu hiển thị khối chuyển ngôn ngữ ở theme: 'text' | 'flag' | 'flag_text'. */
+    public function twigSwitcherDisplay(): string
+    {
+        $value = (string) $this->config->get('plugins.simple-multi-language-site.switcher_display', 'text');
+
+        return in_array($value, ['text', 'flag', 'flag_text'], true) ? $value : 'text';
     }
 
     /**
@@ -176,7 +185,7 @@ class SimpleMultiLanguageSitePlugin extends Plugin
         return $results;
     }
 
-    /** @return array<int, array{code: string, label: string, root_path: string}> */
+    /** @return array<int, array{code: string, label: string, root_path: string, flag: string}> */
     public function twigLanguages(): array
     {
         return $this->languages()->getLanguages();

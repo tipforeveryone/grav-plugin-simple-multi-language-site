@@ -53,6 +53,25 @@ form:
           validate:
             required: true
 
+        .flag:
+          type: text
+          label: Cờ (emoji)
+          help: 'Tuỳ chọn — emoji cờ quốc gia, vd 🇻🇳, 🇬🇧, 🇫🇷. Chỉ dùng khi "Kiểu hiển thị bộ chuyển ngôn ngữ" bên dưới có bật hiển thị cờ. Bỏ trống nếu không dùng.'
+          validate:
+            required: false
+
+    switcher_display:
+      type: select
+      label: Kiểu hiển thị bộ chuyển ngôn ngữ
+      help: 'Cách hiển thị từng ngôn ngữ trong khối chuyển ngôn ngữ ở theme (smls_switcher_display()). "Cờ" cần khai báo field Cờ (emoji) ở trên cho từng ngôn ngữ — ngôn ngữ nào thiếu cờ sẽ tự rơi về hiển thị chữ.'
+      default: text
+      options:
+        text: 'Chỉ chữ (vd EN, VI)'
+        flag: 'Chỉ cờ (emoji)'
+        flag_text: 'Cờ + chữ'
+      validate:
+        required: true
+
     default_language:
       type: select
       label: Ngôn ngữ mặc định

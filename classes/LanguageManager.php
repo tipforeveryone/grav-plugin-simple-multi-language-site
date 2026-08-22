@@ -10,7 +10,7 @@ use Grav\Common\Config\Config;
  */
 class LanguageManager
 {
-    /** @var array<int, array{code: string, label: string, root_path: string}> */
+    /** @var array<int, array{code: string, label: string, root_path: string, flag: string}> */
     private array $languages;
 
     private string $defaultLanguage;
@@ -31,6 +31,7 @@ class LanguageManager
                 'code' => $code,
                 'label' => trim((string) ($entry['label'] ?? $code)),
                 'root_path' => '/' . trim($rootPath, '/'),
+                'flag' => trim((string) ($entry['flag'] ?? '')),
             ];
         }
 
@@ -38,7 +39,7 @@ class LanguageManager
         $this->defaultLanguage = trim((string) $config->get('plugins.simple-multi-language-site.default_language', ''));
     }
 
-    /** @return array<int, array{code: string, label: string, root_path: string}> */
+    /** @return array<int, array{code: string, label: string, root_path: string, flag: string}> */
     public function getLanguages(): array
     {
         return $this->languages;
@@ -53,7 +54,7 @@ class LanguageManager
         return $this->languages[0]['code'] ?? '';
     }
 
-    /** @return array{code: string, label: string, root_path: string}|null */
+    /** @return array{code: string, label: string, root_path: string, flag: string}|null */
     public function findByCode(string $code): ?array
     {
         foreach ($this->languages as $language) {
@@ -69,7 +70,7 @@ class LanguageManager
      * Tìm ngôn ngữ mà root_path là tiền tố của route đã cho.
      * Nếu nhiều root_path cùng khớp (hiếm, do cấu hình chồng lấn), ưu tiên root_path dài nhất.
      *
-     * @return array{code: string, label: string, root_path: string}|null
+     * @return array{code: string, label: string, root_path: string, flag: string}|null
      */
     public function findByRoute(string $route): ?array
     {
