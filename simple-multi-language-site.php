@@ -4,6 +4,7 @@ namespace Grav\Plugin;
 
 use Grav\Common\Page\Interfaces\PageInterface;
 use Grav\Common\Plugin;
+use Grav\Plugin\SimpleMultiLanguageSite\CountryFlags;
 use Grav\Plugin\SimpleMultiLanguageSite\LanguageManager;
 use Grav\Plugin\SimpleMultiLanguageSite\TranslationLinker;
 use RocketTheme\Toolbox\Event\Event;
@@ -118,6 +119,12 @@ class SimpleMultiLanguageSitePlugin extends Plugin
     public static function getLanguageOptions(): array
     {
         return LanguageManager::getLanguageOptions();
+    }
+
+    /** Callback tĩnh dùng bởi field select "Cờ" (data-options@) — danh sách cờ quốc gia để tìm theo tên. */
+    public static function getFlagOptions(): array
+    {
+        return CountryFlags::getOptions();
     }
 
     // ---------------------------------------------------------------------

@@ -54,9 +54,10 @@ form:
             required: true
 
         .flag:
-          type: text
-          label: Cờ (emoji)
-          help: 'Tuỳ chọn — emoji cờ quốc gia, vd 🇻🇳, 🇬🇧, 🇫🇷. Chỉ dùng khi "Kiểu hiển thị bộ chuyển ngôn ngữ" bên dưới có bật hiển thị cờ. Bỏ trống nếu không dùng.'
+          type: select
+          label: Cờ quốc gia
+          help: 'Tuỳ chọn — gõ để tìm theo tên quốc gia (tiếng Anh, vd "Vietnam") hoặc mã ISO 2 ký tự (vd VN, GB, US). Theme hiển thị ảnh cờ thật (không phải emoji — emoji cờ bị Windows hiển thị thành chữ cái thay vì hình). Chỉ dùng khi "Kiểu hiển thị bộ chuyển ngôn ngữ" bên dưới có bật hiển thị cờ. Để "— Không chọn —" nếu không dùng.'
+          data-options@: '\Grav\Plugin\SimpleMultiLanguageSitePlugin::getFlagOptions'
           validate:
             required: false
 

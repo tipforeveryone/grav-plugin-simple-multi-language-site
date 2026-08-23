@@ -11,7 +11,7 @@ A Grav plugin for multi-language sites that keep **separate content trees per la
 - **Language Converter** (`Admin > Multi Language`): bulk-assigns `language` to legacy pages that don't have it yet, based on `root_path` prefix matching (100% deterministic, no guessing), plus a report of pages still missing a counterpart in some language — pairing itself is always left to a human, never auto-guessed.
 - **Legacy-field fallback**: if a page already has an old singular `translation: /some/route` field (from a hand-rolled i18n setup that predates this plugin), it's still read as one valid link until the page is next saved through the new UI.
 - **Owns the site-root redirect** (optional, on by default): `/` gets redirected to the default language's `root_path` — change which language is default in one place (plugin config) instead of also having to hand-edit a `site.yaml` redirect. Turn off via **Tự quản lý redirect trang gốc "/"** if you'd rather manage that redirect yourself.
-- **Configurable switcher display**: each language can carry an optional flag emoji, and a single **Kiểu hiển thị bộ chuyển ngôn ngữ** setting picks whether the frontend switcher shows text only, flag only, or flag + text — themes read this via `smls_switcher_display()` instead of hardcoding markup.
+- **Configurable switcher display**: each language can carry an optional country flag (picked by country name from a built-in ISO 3166-1 list, ~195 countries — no need to know/type any code or emoji), and a single **Kiểu hiển thị bộ chuyển ngôn ngữ** setting picks whether the frontend switcher shows text only, flag only, or flag + text. Flags render as real SVG images (via flagcdn.com), not emoji — flag emoji is unreliable cross-platform (see **Data model** below). Themes read the mode via `smls_switcher_display()` instead of hardcoding markup.
 
 ## Requirements
 
@@ -29,8 +29,8 @@ Go to `Admin > Plugins > Simple Multi Language Site`:
 | Field | Description |
 |---|---|
 | **Plugin status** | Enable/disable the whole plugin |
-| **Languages list** | One row per language: **code** (free-form, ISO-style recommended e.g. `vi`/`en`/`fr`), **label** (display name), **root path** (the folder holding that language's pages, e.g. `/vi`), **flag** (optional emoji, e.g. `🇻🇳`/`🇬🇧` — only used when the switcher display below includes a flag) |
-| **Kiểu hiển thị bộ chuyển ngôn ngữ** | `text` (code only, e.g. `EN`), `flag` (emoji only), or `flag_text` (flag + code). A language with no flag configured silently falls back to text, so this is safe to turn on before every language has a flag set. |
+| **Languages list** | One row per language: **code** (free-form, ISO-style recommended e.g. `vi`/`en`/`fr`), **label** (display name), **root path** (the folder holding that language's pages, e.g. `/vi`), **flag** (optional — a searchable dropdown of ISO 3166-1 countries; type a country name like "Vietnam" or a 2-letter code like `VN` to find it — only used when the switcher display below includes a flag) |
+| **Kiểu hiển thị bộ chuyển ngôn ngữ** | `text` (code only, e.g. `EN`), `flag` (flag image only), or `flag_text` (flag + code). A language with no flag configured silently falls back to text, so this is safe to turn on before every language has a flag set. |
 | **Default language** | Applied to legacy pages that don't have a `language` field yet, and as the default for new pages. Also drives the `/` root redirect (see below) unless that's turned off. |
 | **Tự quản lý redirect trang gốc "/"** | On by default: overrides `site.redirects['^/$']` at runtime to point at the default language's `root_path`. Turn off if you want to manage that redirect yourself in `site.yaml`. |
 
@@ -49,7 +49,7 @@ The plugin exposes Twig functions any theme can call — nothing is auto-injecte
 
 | Function | Returns | Use |
 |---|---|---|
-| `smls_languages()` | `[{code, label, root_path}, ...]` | Iterate configured languages (e.g. to build a switcher) |
+| `smls_languages()` | `[{code, label, root_path, flag}, ...]` | Iterate configured languages (e.g. to build a switcher). `flag` is an ISO 3166-1 alpha-2 country code (e.g. `VN`), empty string if not configured — see **Configuration** |
 | `smls_default_language()` | `string` | Fallback when a page has no language set |
 | `smls_current_language(page)` | `string` | The page's language (falls back to path-prefix match against `root_path`, then to the default) |
 | `smls_switch_route(page, targetCode)` | `string\|null` | The linked route for `targetCode`, or `null` if not linked yet |
@@ -76,7 +76,9 @@ For a theme that has never integrated this plugin before, there are **5 insertio
         {% set switch_route = smls_switch_route(page, lang.code) %}
         {% if switch_route %}
             <a href="{{ base_url ~ switch_route }}">
-                {%- if display in ['flag', 'flag_text'] and lang.flag -%}{{ lang.flag }}{%- endif -%}
+                {%- if display in ['flag', 'flag_text'] and lang.flag -%}
+                    <img src="https://flagcdn.com/{{ lang.flag|lower }}.svg" alt="" width="18" height="13">
+                {%- endif -%}
                 {%- if display == 'text' or display == 'flag_text' or not lang.flag %} {{ lang.code|upper }}{% endif -%}
             </a>
         {% endif %}
@@ -84,7 +86,7 @@ For a theme that has never integrated this plugin before, there are **5 insertio
 {% endfor %}
 ```
 
-`lang.flag` is whatever emoji was configured for that language (empty string if none) — always safe to check truthiness before using it.
+`lang.flag` is the configured ISO 3166-1 alpha-2 country code (empty string if none) — always safe to check truthiness before using it. Deliberately **not** rendered as a flag emoji (e.g. `🇻🇳`): Windows' Segoe UI Emoji font renders flag emoji as two plain letters instead of a picture (a Microsoft policy choice, not a bug in this plugin), so an actual `<img>` from a flag-image source is the only way to guarantee a real flag renders on every OS/browser. [flagcdn.com](https://flagcdn.com) is used here as a free, no-auth, CDN-backed flag image host, keyed directly by the same lowercase ISO code — swap in a self-hosted flag asset path instead if you'd rather not depend on it.
 
 **3. Any lookup of "a page scoped to the current language" — only if the theme's content is organized per-language folder (e.g. finding a nav/config page under the current language's root)**
 

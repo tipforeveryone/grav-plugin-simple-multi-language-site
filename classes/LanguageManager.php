@@ -31,7 +31,7 @@ class LanguageManager
                 'code' => $code,
                 'label' => trim((string) ($entry['label'] ?? $code)),
                 'root_path' => '/' . trim($rootPath, '/'),
-                'flag' => trim((string) ($entry['flag'] ?? '')),
+                'flag' => strtoupper(trim((string) ($entry['flag'] ?? ''))),
             ];
         }
 
