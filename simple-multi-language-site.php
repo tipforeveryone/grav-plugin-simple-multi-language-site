@@ -172,7 +172,7 @@ class SimpleMultiLanguageSitePlugin extends Plugin
 
         $results = [];
         foreach ($this->grav['pages']->all() as $candidate) {
-            if ($candidate->template() !== $template) {
+            if (!$candidate || $candidate->template() !== $template) {
                 continue;
             }
 
@@ -281,6 +281,10 @@ class SimpleMultiLanguageSitePlugin extends Plugin
 
         $rows = [];
         foreach ($this->grav['pages']->all() as $page) {
+            if (!$page) {
+                continue;
+            }
+
             $code = trim((string) ($page->header()->smls_language ?? ''));
             if ($code === '') {
                 continue;
@@ -448,6 +452,10 @@ class SimpleMultiLanguageSitePlugin extends Plugin
 
         $count = 0;
         foreach ($this->grav['pages']->all() as $page) {
+            if (!$page) {
+                continue;
+            }
+
             $header = $page->header();
             $current = trim((string) ($header->smls_language ?? ''));
             if ($current !== '') {
