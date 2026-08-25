@@ -37,7 +37,7 @@ class SimpleMultiLanguageSitePlugin extends Plugin
 
     public function onPluginsInitialized(): void
     {
-        $this->registerAutoload();
+        self::registerAutoload();
 
         if (!$this->config->get('plugins.simple-multi-language-site.enabled', true)) {
             return;
@@ -91,8 +91,24 @@ class SimpleMultiLanguageSitePlugin extends Plugin
         $this->config->set('site.redirects', $redirects);
     }
 
-    private function registerAutoload(): void
+    private static bool $autoloadRegistered = false;
+
+    /**
+     * Đăng ký autoload cho namespace của plugin. Gọi tĩnh ngay khi file này
+     * được require (xem cuối file) — KHÔNG chỉ gọi trong onPluginsInitialized(),
+     * vì các ngữ cảnh CLI như `bin/gpm index`/`bin/gpm install` load blueprint
+     * của mọi plugin (kể cả field data-options@ gọi thẳng getFlagOptions())
+     * mà không khởi động vòng đời event của từng plugin trước — lúc đó
+     * CountryFlags chưa có cách nào được autoload nếu chỉ đăng ký trong
+     * onPluginsInitialized().
+     */
+    public static function registerAutoload(): void
     {
+        if (self::$autoloadRegistered) {
+            return;
+        }
+        self::$autoloadRegistered = true;
+
         spl_autoload_register(function (string $class): void {
             $prefix = 'Grav\\Plugin\\SimpleMultiLanguageSite\\';
             if (strncmp($class, $prefix, strlen($prefix)) !== 0) {
@@ -486,3 +502,7 @@ class SimpleMultiLanguageSitePlugin extends Plugin
         return $user->authorize('admin.super') === true;
     }
 }
+
+// Đăng ký autoload ngay khi file này được require (không đợi onPluginsInitialized) —
+// xem docblock của registerAutoload() ở trên để biết lý do.
+SimpleMultiLanguageSitePlugin::registerAutoload();
