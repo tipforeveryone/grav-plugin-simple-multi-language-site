@@ -3,6 +3,7 @@
 namespace Grav\Plugin;
 
 use Grav\Common\Page\Interfaces\PageInterface;
+use Grav\Common\Page\Pages;
 use Grav\Common\Plugin;
 use Grav\Plugin\SimpleMultiLanguageSite\CountryFlags;
 use Grav\Plugin\SimpleMultiLanguageSite\LanguageManager;
@@ -43,8 +44,6 @@ class SimpleMultiLanguageSitePlugin extends Plugin
             return;
         }
 
-        $this->applyDefaultLanguageRootRedirect();
-
         $this->enable([
             'onTwigInitialized' => ['onTwigInitialized', 0],
         ]);
@@ -59,36 +58,59 @@ class SimpleMultiLanguageSitePlugin extends Plugin
             'onAdminMenu' => ['onAdminMenu', 0],
             'onAdminTwigTemplatePaths' => ['onAdminTwigTemplatePaths', 0],
             'onAdminTaskExecute' => ['onAdminTaskExecute', 0],
+            'onOutputGenerated' => ['onOutputGenerated', 0],
+            'onAdminCreatePageFrontmatter' => ['onAdminCreatePageFrontmatter', 0],
         ]);
     }
 
     /**
-     * "/" nên tự trỏ về root_path của Ngôn ngữ mặc định, để đổi ngôn ngữ mặc
-     * định chỉ cần sửa 1 chỗ (config plugin) thay vì phải tự sửa thêm
-     * site.yaml. Ghi đè site.redirects['^/$'] ngay lúc runtime —
-     * Pages::dispatch() đọc trực tiếp config này mỗi request nên set ở đây
-     * là đủ, không cần đụng vào file site.yaml. Ghi đè hẳn (không cố "chỉ set
-     * nếu chưa có") — bật manage_root_redirect nghĩa là để plugin làm chủ
-     * hoàn toàn redirect "/", tắt field này nếu muốn tự quản lý riêng trong
-     * site.yaml.
+     * Nút "Add Translation" submit task=continue với data[header][smls_language]
+     * + data[header][smls_translations][...] (xem field
+     * simple-multi-language-site-translate.html.twig) — nhưng
+     * Admin::getPage() (admin/classes/plugin/Admin.php, method dựng trang mới
+     * từ dữ liệu session của taskContinue) CHỈ tự lấy đúng key "title" từ data
+     * submit vào header trang mới, mọi key khác trong data[header][...] bị bỏ
+     * qua hoàn toàn — nên trang B tạo ra vẫn rơi về ngôn ngữ mặc định thay vì
+     * ngôn ngữ bản dịch đã chọn. Core CHỪA SẴN event này đúng cho việc này
+     * (bắn kèm 'header' => &$header theo tham chiếu) — gộp thêm data[header]
+     * vào đây để hoàn tất phần core bỏ sót.
      */
-    private function applyDefaultLanguageRootRedirect(): void
+    public function onAdminCreatePageFrontmatter(Event $event): void
     {
-        if (!$this->config->get('plugins.simple-multi-language-site.manage_root_redirect', true)) {
+        $data = (array) ($event['data'] ?? []);
+        $extraHeader = (array) ($data['header'] ?? []);
+        if (empty($extraHeader)) {
             return;
         }
 
-        $rootPath = $this->twigRootPath($this->languages()->getDefaultLanguage());
-        if (!$rootPath) {
+        $header = (array) ($event['header'] ?? []);
+        $event['header'] = $header + $extraHeader;
+    }
+
+    /**
+     * Field "multilang_templates" (type: checkboxes, từ plugin "form" vendored)
+     * render mỗi option là 1 cặp <input>+<label style="display:inline"> rời rạc
+     * trong <div class="checkboxes">, xuống dòng theo flow tự nhiên của trình
+     * duyệt (lộn xộn khi có nhiều option). Không sửa trực tiếp template của
+     * plugin "form" (vendored) — chỉ inject 1 đoạn CSS nhỏ, scope theo class
+     * "smls-multilang-grid" (khai báo ở wrapper_classes của field trong
+     * blueprints.yaml), xếp lại thành lưới đều. Input checkbox vốn đã bị ẩn
+     * (display:none, css lõi của Admin) nên chỉ các <label> mới thực sự tham
+     * gia layout — làm grid item luôn được, không cần bọc thêm.
+     */
+    public function onOutputGenerated(): void
+    {
+        $output = $this->grav->output;
+        if (strpos($output, '</head>') === false) {
             return;
         }
 
-        $redirects = (array) $this->config->get('site.redirects', []);
-        // Pattern must also match "/" with a query string (eg. UTM params from ad/Zalo
-        // links) — a bare '^/$' silently fails to match, and Pages::dispatch() then 404s
-        // instead of redirecting. "$1" forwards the original query string onto the target.
-        $redirects['^/(\?.*)?$'] = $rootPath . '$1[301]';
-        $this->config->set('site.redirects', $redirects);
+        $style = '<style>'
+            . '.checkboxes.smls-multilang-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.5rem 1rem;}'
+            . '.checkboxes.smls-multilang-grid label{margin:0;}'
+            . '</style>';
+
+        $this->grav->output = str_replace('</head>', $style . "\n</head>", $output);
     }
 
     private static bool $autoloadRegistered = false;
@@ -141,6 +163,17 @@ class SimpleMultiLanguageSitePlugin extends Plugin
     public static function getFlagOptions(): array
     {
         return CountryFlags::getOptions();
+    }
+
+    /** Callback tĩnh dùng bởi field checkboxes "Template áp dụng Multi-Language" (data-options@). */
+    public static function getTemplateOptions(): array
+    {
+        // Pages::types() đã trả về đúng dạng slug => Nhãn hiển thị (VD
+        // 'article' => 'Article') — DÙNG TRỰC TIẾP, không array_combine lại
+        // theo nhãn (từng làm value/key của checkboxes lệch case so với
+        // $event['type'] thực tế ở onBlueprintCreated(), khiến field
+        // Ngôn ngữ/Bản dịch không bao giờ được thêm dù đã tick đúng ô).
+        return Pages::types();
     }
 
     // ---------------------------------------------------------------------
@@ -333,6 +366,15 @@ class SimpleMultiLanguageSitePlugin extends Plugin
     {
         $languages = $this->languages()->getLanguages();
         if (count($languages) < 2) {
+            return;
+        }
+
+        // "use: keys" (blueprints.yaml) lưu field này dạng map {template => true/false},
+        // giống hệt cách core lưu header.process ({markdown: true, twig: false}) —
+        // KHÔNG phải mảng phẳng các template được chọn.
+        $allowedTemplates = (array) $this->config->get('plugins.simple-multi-language-site.multilang_templates', []);
+        $templateName = (string) ($event['type'] ?? '');
+        if ($templateName === '' || empty($allowedTemplates[$templateName])) {
             return;
         }
 

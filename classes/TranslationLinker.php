@@ -51,7 +51,15 @@ class TranslationLinker
         return $this->languages->getDefaultLanguage();
     }
 
-    /** @return array<string, string> map code => route */
+    /**
+     * @return array<string, string> map code => route
+     *
+     * Chỉ trả về entry mà trang đích THẬT SỰ còn tồn tại — route khai báo
+     * có thể là 1 link mồ côi (trang đích đã bị xoá/đổi tên mà không dọn lại
+     * field này), nếu không lọc thì "Add Translation" bị ẩn sai, bộ chuyển
+     * ngôn ngữ ở frontend trỏ tới trang 404, và báo cáo Language Converter
+     * coi nhầm là đã đủ bản dịch.
+     */
     public function getTranslations(PageInterface $page): array
     {
         $header = $page->header();
@@ -60,7 +68,7 @@ class TranslationLinker
         $map = [];
         foreach ($translations as $code => $route) {
             $route = trim((string) $route);
-            if ($route !== '') {
+            if ($route !== '' && $this->pages->find($route)) {
                 $map[(string) $code] = $route;
             }
         }
@@ -70,7 +78,7 @@ class TranslationLinker
         // Nhiều trang đã có sẵn field này; đọc thêm cho tới khi được migrate
         // sang "translations" map qua lần lưu tiếp theo trong Admin.
         $legacyRoute = trim((string) ($header->translation ?? ''));
-        if ($legacyRoute !== '') {
+        if ($legacyRoute !== '' && $this->pages->find($legacyRoute)) {
             $legacyLanguage = $this->languages->findByRoute($legacyRoute);
             if ($legacyLanguage && !isset($map[$legacyLanguage['code']])) {
                 $map[$legacyLanguage['code']] = $legacyRoute;
@@ -88,8 +96,11 @@ class TranslationLinker
     /**
      * Sau khi 1 trang được lưu trong Admin: với mỗi counterpart khai báo trong
      * header.smls_translations, mở trang đích và đảm bảo nó cũng trỏ ngược lại
-     * route của trang vừa lưu. Bỏ qua nếu route đích không tồn tại hoặc đã
-     * đúng sẵn (tránh ghi/save thừa).
+     * route của trang vừa lưu (bỏ qua nếu route đích không tồn tại hoặc đã
+     * đúng sẵn, tránh ghi/save thừa) — sau đó dọn luôn các link ngược đã lỗi
+     * thời: nếu trang khác đang trỏ về trang này ở 1 ngôn ngữ mà trang này
+     * KHÔNG còn khai báo lại (vd người dùng vừa xoá entry đó và lưu), gỡ
+     * entry đó khỏi trang kia luôn thay vì để lại link mồ côi.
      */
     public function syncBack(PageInterface $page): void
     {
@@ -101,18 +112,71 @@ class TranslationLinker
 
         $sourceCode = $this->getPageLanguage($page);
         $translations = $this->getTranslations($page);
-        if ($sourceCode === '' || !$translations) {
-            return;
-        }
 
         self::$syncing[$sourceRoute] = true;
 
         try {
-            foreach ($translations as $targetCode => $targetRoute) {
-                $this->linkBack($sourceRoute, $sourceCode, $targetRoute);
+            if ($sourceCode !== '') {
+                foreach ($translations as $targetCode => $targetRoute) {
+                    $this->linkBack($sourceRoute, $sourceCode, $targetRoute);
+                }
             }
+            $this->pruneStaleBackLinks($sourceRoute, $translations);
         } finally {
             unset(self::$syncing[$sourceRoute]);
+        }
+    }
+
+    /**
+     * Quét toàn bộ trang tìm những trang đang có 1 entry smls_translations
+     * trỏ về $sourceRoute nhưng không còn được $sourceRoute xác nhận lại
+     * (tức là bị xoá khỏi map hiện tại của trang nguồn) — gỡ entry mồ côi đó.
+     *
+     * @param array<string, string> $currentTranslations map hiện tại (sau khi lưu) của trang nguồn, code => route
+     */
+    private function pruneStaleBackLinks(string $sourceRoute, array $currentTranslations): void
+    {
+        foreach ($this->pages->all() as $candidate) {
+            if (!$candidate) {
+                continue;
+            }
+
+            $candidateRoute = '/' . ltrim((string) $candidate->route(), '/');
+            if ($candidateRoute === $sourceRoute || isset(self::$syncing[$candidateRoute])) {
+                continue;
+            }
+
+            $header = $candidate->header();
+            $raw = (array) ($header->smls_translations ?? []);
+
+            $staleCodes = [];
+            foreach ($raw as $code => $route) {
+                if ('/' . ltrim((string) $route, '/') !== $sourceRoute) {
+                    continue;
+                }
+
+                $candidateCode = $this->getPageLanguage($candidate);
+                if (($currentTranslations[$candidateCode] ?? null) !== $candidateRoute) {
+                    $staleCodes[] = $code;
+                }
+            }
+
+            if (!$staleCodes) {
+                continue;
+            }
+
+            foreach ($staleCodes as $code) {
+                unset($raw[$code]);
+            }
+            $header->smls_translations = $raw;
+            $candidate->header($header);
+
+            self::$syncing[$candidateRoute] = true;
+            try {
+                $candidate->save(false);
+            } finally {
+                unset(self::$syncing[$candidateRoute]);
+            }
         }
     }
 

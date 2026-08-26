@@ -5,41 +5,70 @@
     {% set target_label = field.target_label %}
     {% set page_obj = admin.page() %}
     {% set current_code = smls_current_language(page_obj) %}
+    {# Theo canvas spec: section "Translation" chỉ enable khi đã xác định xong
+       ngôn ngữ hiển thị — dùng header.smls_language THẬT (đã được ghi vào
+       header object), không phải giá trị "default" chỉ hiển thị tạm trên
+       field select khi chưa ai chọn gì. Một trang "Add Page" trắng (không đi
+       qua nút "Add Translation") sẽ KHÔNG có key này trong header cho tới khi
+       Save lần đầu — nên section vẫn tự động ẩn đúng như mong muốn.
+       CHÚ Ý: KHÔNG được đòi hỏi thêm page_obj.exists() (trang đã tồn tại trên
+       đĩa) ở đây — trang B tạo ra từ nút "Add Translation" đã có sẵn
+       header.smls_language (nhờ onAdminCreatePageFrontmatter ở
+       simple-multi-language-site.php) NGAY TỪ màn hình Add Page đầu tiên,
+       trước khi Save lần nào. Nếu đòi exists() thì đúng lúc B cần hiện field
+       header.smls_translations (đã pre-fill sẵn trỏ về A) để LẦN SAVE ĐẦU
+       TIÊN submit được giá trị đó, section lại bị ẩn mất — field không được
+       render nên không có gì được submit, xoá mất luôn liên kết 2 chiều vừa
+       tạo sẵn. Từng bị lỗi này — xem phản hồi người dùng. #}
+    {% set page_saved = page_obj and (page_obj.header.smls_language|default('')|trim) != '' %}
 
     <div class="form-field grid {{ field.outerclasses }}">
         <div class="form-label block size-1-3">
             <label>{{ field.label|t }}</label>
         </div>
         <div class="form-data block size-2-3 smls-inline-data">
-            <div class="form-select-wrapper">
-                {# Chỉ liệt kê trang cùng template với trang đang edit — không lẫn
-                   nav/footer/member... vào picker của trang article, vd. #}
-                <select name="{{ field_name }}">
-                    <option value="" {% if not value %}selected="selected"{% endif %}>Chưa có bản dịch</option>
-                    {% for candidate in smls_pages_by_template(page_obj) %}
-                        <option value="{{ candidate.route }}" {% if candidate.route == value %}selected="selected"{% endif %}>
-                            {{ candidate.title }} ({{ candidate.route }})
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+            {% if not page_saved %}
+                <em class="smls-translate-pending">Lưu trang và xác định Ngôn ngữ trước, rồi quay lại đây để thêm bản dịch.</em>
+            {% else %}
+                <div class="form-select-wrapper">
+                    {# Chỉ liệt kê trang cùng template với trang đang edit — không lẫn
+                       nav/footer/member... vào picker của trang article, vd. #}
+                    <select name="{{ field_name }}">
+                        <option value="" {% if not value %}selected="selected"{% endif %}>Chưa có bản dịch</option>
+                        {% for candidate in smls_pages_by_template(page_obj) %}
+                            <option value="{{ candidate.route }}" {% if candidate.route == value %}selected="selected"{% endif %}>
+                                {{ candidate.title }} ({{ candidate.route }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            {% if target_code != current_code %}
-                {% set existing_route = smls_switch_route(page_obj, target_code) %}
-                {% if not existing_route %}
-                    {% set target_parent = smls_translate_target_parent(page_obj, target_code) %}
-                    {% if target_parent is not null %}
-                        <form method="post" action="{{ base_url_relative }}/pages{{ target_parent }}" class="smls-inline-form">
-                            <input type="hidden" name="task" value="continue">
-                            <input type="hidden" name="data[route]" value="{{ target_parent }}">
-                            <input type="hidden" name="data[name]" value="{{ page_obj.template }}">
-                            <input type="hidden" name="data[header][smls_language]" value="{{ target_code }}">
-                            <input type="hidden" name="data[header][smls_translations][{{ current_code }}]" value="{{ '/' ~ (page_obj.route ?: '')|trim('/') }}">
-                            {{ nonce_field('admin-form', 'admin-nonce')|raw }}
-                            <button type="submit" class="button">
+                {% if target_code != current_code %}
+                    {% set existing_route = smls_switch_route(page_obj, target_code) %}
+                    {% if not existing_route %}
+                        {% set target_parent = smls_translate_target_parent(page_obj, target_code) %}
+                        {% if target_parent is not null %}
+                            {# QUAN TRỌNG: field này được render BÊN TRONG <form> edit chính
+                               của trang A (partials/blueprints.html.twig) — HTML không cho
+                               phép <form> lồng nhau, trình duyệt sẽ bỏ qua thẻ <form> con và
+                               nút submit bên trong nó thực chất submit form NGOÀI CÙNG (lưu
+                               lại chính trang A), khiến nút trông như chỉ "reload lại trang A".
+                               Vì vậy dùng button type="button" + JS tự dựng 1 <form> MỚI, gắn
+                               thẳng vào document.body (ngoài mọi form khác) rồi submit — xem
+                               script bên dưới (data-smls-add-translation). #}
+                            <button type="button" class="button"
+                                data-smls-add-translation
+                                data-action="{{ (base_url_relative ~ '/pages' ~ target_parent)|e('html_attr') }}"
+                                data-route="{{ target_parent|e('html_attr') }}"
+                                data-template="{{ page_obj.template|e('html_attr') }}"
+                                data-title="{{ page_obj.title|e('html_attr') }}"
+                                data-lang-code="{{ target_code|e('html_attr') }}"
+                                data-back-field="{{ ('data[header][smls_translations][' ~ current_code ~ ']')|e('html_attr') }}"
+                                data-back-route="{{ ('/' ~ (page_obj.route ?: '')|trim('/'))|e('html_attr') }}"
+                                data-nonce="{{ admin.getNonce()|e('html_attr') }}">
                                 <i class="fa fa-plus"></i> Add Translation
                             </button>
-                        </form>
+                        {% endif %}
                     {% endif %}
                 {% endif %}
             {% endif %}
@@ -55,9 +84,52 @@
             style.textContent =
                 '.smls-inline-data { display: flex; align-items: center; flex-wrap: nowrap; gap: 0.5rem; }' +
                 '.smls-inline-data .form-select-wrapper { flex: 1 1 auto; min-width: 0; }' +
-                '.smls-inline-form { margin: 0; flex: 0 0 auto; }' +
-                '.smls-inline-form .button { white-space: nowrap; }';
+                '.smls-translate-pending { color: #888; font-style: italic; }' +
+                '.smls-inline-data [data-smls-add-translation] { white-space: nowrap; flex: 0 0 auto; }';
             document.head.appendChild(style);
+
+            /**
+             * Nút "Add Translation" KHÔNG thể là <button type="submit"> bên trong
+             * 1 <form> lồng — field này render bên trong form edit chính của
+             * trang đang mở, HTML không hỗ trợ form lồng nhau (trình duyệt bỏ
+             * qua form con, submit nhầm sang form ngoài = lưu lại trang hiện tại).
+             * Nên ở đây tự dựng 1 <form> THẬT, gắn thẳng vào document.body
+             * (ngoài mọi form khác đang có trên trang), rồi submit — postback
+             * y hệt hành vi 1 form POST bình thường tới task=continue.
+             */
+            function submitAddTranslation(btn) {
+                var form = document.createElement('form');
+                form.method = 'post';
+                form.action = btn.dataset.action;
+                form.style.display = 'none';
+
+                function addField(name, value) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value;
+                    form.appendChild(input);
+                }
+
+                addField('task', 'continue');
+                addField('data[route]', btn.dataset.route);
+                addField('data[name]', btn.dataset.template);
+                addField('data[title]', btn.dataset.title);
+                addField('data[header][smls_language]', btn.dataset.langCode);
+                addField(btn.dataset.backField, btn.dataset.backRoute);
+                addField('admin-nonce', btn.dataset.nonce);
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+
+            function bindAddTranslationButtons() {
+                document.querySelectorAll('[data-smls-add-translation]').forEach(function (btn) {
+                    if (btn.__smlsBound) { return; }
+                    btn.__smlsBound = true;
+                    btn.addEventListener('click', function () { submitAddTranslation(btn); });
+                });
+            }
 
             function applyLanguageVisibility(select) {
                 var current = select.value;
@@ -76,6 +148,8 @@
             }
 
             function bind() {
+                bindAddTranslationButtons();
+
                 var select = document.querySelector('[data-smls-language-select]');
                 if (!select) { return; }
                 applyLanguageVisibility(select);

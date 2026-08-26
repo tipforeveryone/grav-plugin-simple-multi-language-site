@@ -81,13 +81,10 @@ form:
       validate:
         required: true
 
-    manage_root_redirect:
-      type: toggle
-      label: Tự quản lý redirect trang gốc "/"
-      help: 'Khi bật, plugin tự ghi đè site.redirects[''^/$''] (runtime, không sửa file site.yaml) để "/" luôn trỏ về root_path của Ngôn ngữ mặc định — đổi ngôn ngữ mặc định chỉ cần sửa ở đây, không cần tự sửa site.yaml. Tắt nếu bạn muốn tự quản lý redirect "/" theo cách khác trong site.yaml.'
-      default: 1
-      options:
-        1: Enabled
-        0: Disabled
-      validate:
-        type: bool
+    multilang_templates:
+      type: checkboxes
+      label: Template áp dụng Multi-Language
+      help: 'Chỉ các trang dùng 1 trong các template được chọn ở đây mới có field Ngôn ngữ/Bản dịch trong form edit. Bỏ trống nghĩa là chưa bật cho template nào.'
+      data-options@: '\Grav\Plugin\SimpleMultiLanguageSitePlugin::getTemplateOptions'
+      wrapper_classes: smls-multilang-grid
+      use: keys

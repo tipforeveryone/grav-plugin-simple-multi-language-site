@@ -5,22 +5,22 @@ A Grav plugin for multi-language sites that keep **separate content trees per la
 ## Features
 
 - **Free-form language list**: define any number of languages with your own codes (not hardcoded to `vi`/`en`/`fr`), each with a `root_path` (the folder that holds that language's pages) and a designated default language.
-- **Per-page language + translation links**: every page gets a language select field and one translation-link field per other configured language, added directly under the Content tab's editor. The translation picker only lists pages that share the same **template** as the page being edited.
-- **Bidirectional sync**: linking page A → page B on save automatically links page B → page A too, so you only ever set the link from one side.
+- **Per-template opt-in**: a checkbox list of page templates (`Template áp dụng Multi-Language`) controls which templates actually get the language/translation fields and participate in switching — nothing is injected for a template that isn't checked, even once languages are configured.
+- **Per-page language + translation links**: on an opted-in template, every page gets a language select field and one translation-link field per other configured language, added directly under the Content tab's editor. The translation picker only lists pages that share the same **template** as the page being edited.
+- **Bidirectional sync, both ways**: linking page A → page B on save automatically links page B → page A too, so you only ever set the link from one side. Removing a link and saving also removes the stale back-reference from the other page — no orphaned links left behind.
 - **Add Translation**: for any language not yet linked, a button pre-fills Grav Admin's "Add Page" screen with the target language and a back-link to the current page already set.
 - **Language Converter** (`Admin > Multi Language`): bulk-assigns `language` to legacy pages that don't have it yet, based on `root_path` prefix matching (100% deterministic, no guessing), plus a report of pages still missing a counterpart in some language — pairing itself is always left to a human, never auto-guessed.
 - **Legacy-field fallback**: if a page already has an old singular `translation: /some/route` field (from a hand-rolled i18n setup that predates this plugin), it's still read as one valid link until the page is next saved through the new UI.
-- **Owns the site-root redirect** (optional, on by default): `/` gets redirected to the default language's `root_path` — change which language is default in one place (plugin config) instead of also having to hand-edit a `site.yaml` redirect. Turn off via **Tự quản lý redirect trang gốc "/"** if you'd rather manage that redirect yourself.
 - **Configurable switcher display**: each language can carry an optional country flag (picked by country name from a built-in ISO 3166-1 list, ~195 countries — no need to know/type any code or emoji), and a single **Kiểu hiển thị bộ chuyển ngôn ngữ** setting picks whether the frontend switcher shows text only, flag only, or flag + text. This is entirely plugin-owned — the country list, the search-by-name picker, and the display-mode setting all live here (`classes/CountryFlags.php`, `blueprints.yaml`, `smls_switcher_display()`); the theme only supplies the `<img>`/text markup that consumes it (see **Theme integration** point 2). Flags render as real SVG images (via flagcdn.com), not emoji — flag emoji is unreliable cross-platform (see **Data model** below).
 
 ## Requirements
 
-- Grav >= 1.7.0, with the **Admin** plugin.
+- Grav 2.0 (PHP 8.3), with the **Admin** plugin.
 - `admin.super` to access `Admin > Multi Language` (Language Converter). Any user who can edit pages can use the per-page language/translation fields.
 
 ## Installation
 
-Lives as a git submodule at `user/plugins/simple-multi-language-site/`, pointing to its own repo (not on GPM). To add it to another site: `git submodule add git@github.com:tipforeveryone/grav-plugin-simple-multi-language-site.git user/plugins/simple-multi-language-site`. Enable it under `Admin > Plugins > Simple Multi Language Site`.
+Lives as its own git repo, cloned into `user/plugins/simple-multi-language-site/` via Grav's `.dependencies` mechanism (not on GPM) — see the `simple-multi-language-site` entry under the `git:` block in the site's `.dependencies`, applied with `bin/grav install`. Enable it under `Admin > Plugins > Simple Multi Language Site`.
 
 ## Configuration
 
@@ -31,10 +31,10 @@ Go to `Admin > Plugins > Simple Multi Language Site`:
 | **Plugin status** | Enable/disable the whole plugin |
 | **Languages list** | One row per language: **code** (free-form, ISO-style recommended e.g. `vi`/`en`/`fr`), **label** (display name), **root path** (the folder holding that language's pages, e.g. `/vi`), **flag** (optional — a searchable dropdown of ISO 3166-1 countries; type a country name like "Vietnam" or a 2-letter code like `VN` to find it — only used when the switcher display below includes a flag) |
 | **Kiểu hiển thị bộ chuyển ngôn ngữ** | `text` (code only, e.g. `EN`), `flag` (flag image only), or `flag_text` (flag + code). A language with no flag configured silently falls back to text, so this is safe to turn on before every language has a flag set. |
-| **Default language** | Applied to legacy pages that don't have a `language` field yet, and as the default for new pages. Also drives the `/` root redirect (see below) unless that's turned off. |
-| **Tự quản lý redirect trang gốc "/"** | On by default: overrides `site.redirects['^/$']` at runtime to point at the default language's `root_path`. Turn off if you want to manage that redirect yourself in `site.yaml`. |
+| **Default language** | Applied to legacy pages that don't have a `language` field yet, and as the default for new pages. |
+| **Template áp dụng Multi-Language** | Checkbox list of page templates (populated from `\Grav\Common\Page\Pages::types()`) that get the language/translation fields and participate in switching. Leave a template unchecked to keep it completely untouched by this plugin. |
 
-The plugin needs **at least 2 languages configured** before it injects anything into page-edit forms or the frontend switcher.
+The plugin needs **at least 2 languages configured, and the current page's template checked** in **Template áp dụng Multi-Language**, before it injects anything into that template's edit form or the frontend switcher.
 
 ## Usage
 
@@ -107,7 +107,7 @@ Replaces the old-style `uri.path starts with '/en'` check.
 
 Register fallback versions of the `smls_*` functions the theme actually calls, gated behind the plugin's `enabled` config flag, so disabling/removing the plugin later doesn't hard-break the theme. See the "Hard dependency once integrated" section below for why and how.
 
-See [`eznotary/templates/partials/header.html.twig`](../../themes/eznotary/templates/partials/header.html.twig), [`base.html.twig`](../../themes/eznotary/templates/partials/base.html.twig) and [`article-list.html.twig`](../../themes/eznotary/templates/article-list.html.twig) for the real integration this plugin was built against (covers points 1–4).
+See [`quark2/templates/partials/language-switcher.html.twig`](../../themes/quark2/templates/partials/language-switcher.html.twig) and its two `{% include %}` call sites in [`base.html.twig`](../../themes/quark2/templates/partials/base.html.twig) for the real integration this plugin was built against (covers point 2; no languages/`root_path`s are configured on this site yet, so points 1/3/4 aren't wired up until that happens).
 
 ## ⚠️ Hard dependency once integrated
 
@@ -116,7 +116,7 @@ Once a theme calls `smls_*` functions, **disabling or removing this plugin witho
 Two ways to stay safe:
 
 1. **Simplest**: treat this plugin as a required dependency of the theme, same as the Admin plugin itself — document it, don't disable it without also reverting the theme's `smls_*` calls.
-2. **Safer**: have the theme register its own fallback versions of the functions it actually calls, gated behind the plugin's own `enabled` config flag — see [`eznotary/eznotary.php`](../../themes/eznotary/eznotary.php)'s `onTwigInitialized()` for a working reference implementation.
+2. **Safer**: have the theme register its own fallback versions of the functions it actually calls, gated behind the plugin's own `enabled` config flag — see [`quark2/quark2.php`](../../themes/quark2/quark2.php)'s `registerSmlsFallbacks()` (called from `onTwigInitialized()`) for a working reference implementation.
 
 If you build a fallback like that, **do not** use `$twig->hasFunction()`/`getFunction()` to check whether the real function is already registered before deciding to add a fallback — calling either of those methods forces Twig to finalize its extension list immediately, and if the plugin then tries to register its real functions afterward, Twig throws `"Unable to register extension ... as extensions have already been initialized"`. Check `plugins.simple-multi-language-site.enabled` from config instead, and only register fallbacks when it's falsy.
 
