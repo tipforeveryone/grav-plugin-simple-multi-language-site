@@ -7,6 +7,7 @@ use Grav\Common\Page\Pages;
 use Grav\Common\Plugin;
 use Grav\Plugin\SimpleMultiLanguageSite\CountryFlags;
 use Grav\Plugin\SimpleMultiLanguageSite\LanguageManager;
+use Grav\Plugin\SimpleMultiLanguageSite\SimpleMultiLanguageSiteApiController;
 use Grav\Plugin\SimpleMultiLanguageSite\TranslationLinker;
 use RocketTheme\Toolbox\Event\Event;
 
@@ -33,6 +34,8 @@ class SimpleMultiLanguageSitePlugin extends Plugin
     {
         return [
             'onPluginsInitialized' => ['onPluginsInitialized', 0],
+            'onApiRegisterRoutes'  => ['onApiRegisterRoutes', 0],
+            'onApiSidebarItems'    => ['onApiSidebarItems', 0],
         ];
     }
 
@@ -46,6 +49,17 @@ class SimpleMultiLanguageSitePlugin extends Plugin
 
         $this->enable([
             'onTwigInitialized' => ['onTwigInitialized', 0],
+            // These three also fire for Admin2/API requests — the api
+            // plugin's PagesController fires the same onAdmin* events for
+            // backward compat (see CLAUDE.md), and the api plugin's own
+            // blueprint resolution fires onBlueprintCreated too — so they
+            // must NOT be gated behind isAdmin() below, or the "Ngôn ngữ /
+            // Bản dịch" fields and the after-save sync silently stop
+            // working the moment a page is edited through Admin2 instead
+            // of admin-classic.
+            'onBlueprintCreated' => ['onBlueprintCreated', 0],
+            'onAdminAfterSave' => ['onAdminAfterSave', 0],
+            'onAdminCreatePageFrontmatter' => ['onAdminCreatePageFrontmatter', 0],
         ]);
 
         if (!$this->isAdmin()) {
@@ -53,14 +67,44 @@ class SimpleMultiLanguageSitePlugin extends Plugin
         }
 
         $this->enable([
-            'onBlueprintCreated' => ['onBlueprintCreated', 0],
-            'onAdminAfterSave' => ['onAdminAfterSave', 0],
             'onAdminMenu' => ['onAdminMenu', 0],
             'onAdminTwigTemplatePaths' => ['onAdminTwigTemplatePaths', 0],
             'onAdminTaskExecute' => ['onAdminTaskExecute', 0],
             'onOutputGenerated' => ['onOutputGenerated', 0],
-            'onAdminCreatePageFrontmatter' => ['onAdminCreatePageFrontmatter', 0],
         ]);
+    }
+
+    /** Admin2 counterpart to onAdminMenu() below. */
+    public function onApiSidebarItems(Event $event): void
+    {
+        if (!$this->config->get('plugins.simple-multi-language-site.enabled', true)) {
+            return;
+        }
+
+        $items = $event['items'] ?? [];
+        $items[] = [
+            'id'        => 'simple-multi-language-site',
+            'plugin'    => 'simple-multi-language-site',
+            'label'     => 'Multi Language',
+            'icon'      => 'fa-language',
+            'route'     => '/plugin/simple-multi-language-site',
+            'priority'  => 80,
+            'authorize' => ['api.super'],
+        ];
+        $event['items'] = $items;
+    }
+
+    /** Admin2 counterpart to the smlsassignlanguages onAdminTaskExecute handler below. */
+    public function onApiRegisterRoutes(Event $event): void
+    {
+        if (!$this->config->get('plugins.simple-multi-language-site.enabled', true)) {
+            return;
+        }
+
+        $routes = $event['routes'];
+        $controller = SimpleMultiLanguageSiteApiController::class;
+        $routes->post('/simple-multi-language-site/assign-languages', [$controller, 'assignLanguages']);
+        $routes->get('/simple-multi-language-site/missing-translations', [$controller, 'missingTranslations']);
     }
 
     /**
