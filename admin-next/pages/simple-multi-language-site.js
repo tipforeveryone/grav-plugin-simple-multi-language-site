@@ -68,7 +68,7 @@ class SimpleMultiLanguageSitePage extends HTMLElement {
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
-            throw new Error(body?.error?.message || body?.message || `Request failed (${res.status})`);
+            throw new Error(body?.detail || body?.error?.message || body?.message || `Request failed (${res.status})`);
         }
         return body.data ?? body;
     }
